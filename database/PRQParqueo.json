@@ -1,0 +1,4 @@
+[
+  { "id": 1, "province_name": "San José", "name": "Parqueo Central", "price_per_hour": 1250.00 },
+  { "id": 2, "province_name": "Alajuela", "name": "Parqueo Campus Norte", "price_per_hour": 900.00 }
+]
