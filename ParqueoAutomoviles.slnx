@@ -1,4 +1,5 @@
 <Solution>
   <Project Path="ParqueoAutomoviles.Core.Tests/ParqueoAutomoviles.Core.Tests.csproj" />
   <Project Path="ParqueoAutomoviles.Core/ParqueoAutomoviles.Core.csproj" />
+  <Project Path="ParqueoAutomoviles.Model/ParqueoAutomoviles.Model.csproj" />
 </Solution>
