@@ -20,6 +20,8 @@
 
   <ItemGroup>
     <ProjectReference Include="..\ParqueoAutomoviles.Core\ParqueoAutomoviles.Core.csproj" />
+    <ProjectReference Include="..\ParqueoAutomoviles.BusinessLogic\ParqueoAutomoviles.BusinessLogic.csproj" />
+    <ProjectReference Include="..\ParqueoAutomoviles.Model\ParqueoAutomoviles.Model.csproj" />
   </ItemGroup>
 
 </Project>

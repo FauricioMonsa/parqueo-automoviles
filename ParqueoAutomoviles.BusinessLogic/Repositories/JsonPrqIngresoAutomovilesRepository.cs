@@ -5,13 +5,11 @@ using ParqueoAutomoviles.Model;
 
 namespace ParqueoAutomoviles.BusinessLogic.Repositories;
 
-public sealed class JsonPrqIngresoAutomovilesRepository(JsonPrqDataSource dataSource) : IPrqIngresoAutomovilesRepository
+public sealed class JsonPrqIngresoAutomovilesRepository(JsonPrqDataSource dataSource)
+    : JsonRepositoryBase<PrqingresoAutomovile>(dataSource, "PRQIngresoAutomoviles.json", entry => entry.Consecutive), IPrqIngresoAutomovilesRepository
 {
-    public async Task<PrqingresoAutomovile?> GetByIdAsync(long consecutive, CancellationToken cancellationToken = default) =>
-        (await dataSource.LoadEntriesAsync(cancellationToken)).FirstOrDefault(entry => entry.Consecutive == consecutive);
-
     public async Task<decimal?> GetPricePerHourByParkingAsync(long parkingId, CancellationToken cancellationToken = default) =>
-        (await dataSource.LoadParkingsAsync(cancellationToken))
+        (await DataSource.LoadParkingsAsync(cancellationToken))
             .Where(parking => parking.Id == parkingId)
             .Select(parking => (decimal?)parking.PricePerHour)
             .FirstOrDefault();
@@ -23,9 +21,9 @@ public sealed class JsonPrqIngresoAutomovilesRepository(JsonPrqDataSource dataSo
         CancellationToken cancellationToken = default)
     {
         ValidateDateRange(from, to);
-        var cars = await dataSource.LoadCarsAsync(cancellationToken);
+        var cars = await DataSource.LoadCarsAsync(cancellationToken);
         var matchingCarIds = cars.Where(car => car.Type == type).Select(car => car.Id).ToHashSet();
-        var entries = (await dataSource.LoadEntriesAsync(cancellationToken))
+        var entries = (await DataSource.LoadEntriesAsync(cancellationToken))
             .Where(entry => matchingCarIds.Contains(entry.CarId) && entry.EntryDatetime >= from && entry.EntryDatetime <= to)
             .OrderBy(entry => entry.EntryDatetime)
             .ToList();
@@ -40,12 +38,12 @@ public sealed class JsonPrqIngresoAutomovilesRepository(JsonPrqDataSource dataSo
     {
         ArgumentNullException.ThrowIfNull(provinceName);
         ValidateDateRange(from, to);
-        var provinceParkingIds = (await dataSource.LoadParkingsAsync(cancellationToken))
+        var provinceParkingIds = (await DataSource.LoadParkingsAsync(cancellationToken))
             .Where(parking => parking.ProvinceName.Contains(provinceName, StringComparison.OrdinalIgnoreCase))
             .Select(parking => parking.Id)
             .ToHashSet();
-        var cars = await dataSource.LoadCarsAsync(cancellationToken);
-        var entries = (await dataSource.LoadEntriesAsync(cancellationToken))
+        var cars = await DataSource.LoadCarsAsync(cancellationToken);
+        var entries = (await DataSource.LoadEntriesAsync(cancellationToken))
             .Where(entry => provinceParkingIds.Contains(entry.ParkingId) && entry.EntryDatetime >= from && entry.EntryDatetime <= to)
             .OrderBy(entry => entry.EntryDatetime)
             .ToList();
@@ -57,7 +55,7 @@ public sealed class JsonPrqIngresoAutomovilesRepository(JsonPrqDataSource dataSo
         IReadOnlyList<Prqautomovile> cars,
         CancellationToken cancellationToken)
     {
-        var parkings = await dataSource.LoadParkingsAsync(cancellationToken);
+        var parkings = await DataSource.LoadParkingsAsync(cancellationToken);
         var carsById = cars.ToDictionary(car => car.Id);
         var parkingsById = parkings.ToDictionary(parking => parking.Id);
         var reports = new List<AutomobileParkingEntryReport>(entries.Count);

@@ -5,14 +5,11 @@ using ParqueoAutomoviles.Model;
 
 namespace ParqueoAutomoviles.BusinessLogic.Repositories;
 
-public sealed class EfCorePrqIngresoAutomovilesRepository(ParqueoAutomovilesContext context) : IPrqIngresoAutomovilesRepository
+public sealed class EfCorePrqIngresoAutomovilesRepository(ParqueoAutomovilesContext context)
+    : EfCoreRepository<PrqingresoAutomovile>(context), IPrqIngresoAutomovilesRepository
 {
-    public Task<PrqingresoAutomovile?> GetByIdAsync(long consecutive, CancellationToken cancellationToken = default) =>
-        context.PrqingresoAutomoviles.AsNoTracking()
-            .FirstOrDefaultAsync(entry => entry.Consecutive == consecutive, cancellationToken);
-
     public Task<decimal?> GetPricePerHourByParkingAsync(long parkingId, CancellationToken cancellationToken = default) =>
-        context.Prqparqueos.AsNoTracking()
+        Context.Prqparqueos.AsNoTracking()
             .Where(parking => parking.Id == parkingId)
             .Select(parking => (decimal?)parking.PricePerHour)
             .SingleOrDefaultAsync(cancellationToken);
@@ -24,7 +21,7 @@ public sealed class EfCorePrqIngresoAutomovilesRepository(ParqueoAutomovilesCont
         CancellationToken cancellationToken = default)
     {
         ValidateDateRange(from, to);
-        var entries = await context.PrqingresoAutomoviles.AsNoTracking()
+        var entries = await Context.PrqingresoAutomoviles.AsNoTracking()
             .Include(entry => entry.Car)
             .Include(entry => entry.Parking)
             .Where(entry => entry.Car.Type == type && entry.EntryDatetime >= from && entry.EntryDatetime <= to)
@@ -43,7 +40,7 @@ public sealed class EfCorePrqIngresoAutomovilesRepository(ParqueoAutomovilesCont
         ArgumentNullException.ThrowIfNull(provinceName);
         ValidateDateRange(from, to);
         var provincePattern = $"%{provinceName}%";
-        var entries = await context.PrqingresoAutomoviles.AsNoTracking()
+        var entries = await Context.PrqingresoAutomoviles.AsNoTracking()
             .Include(entry => entry.Car)
             .Include(entry => entry.Parking)
             .Where(entry => EF.Functions.ILike(entry.Parking.ProvinceName, provincePattern)
