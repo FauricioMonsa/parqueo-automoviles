@@ -7,6 +7,43 @@ namespace ParqueoAutomoviles.BusinessLogic.Repositories;
 public sealed class EfCorePrqAutomovilesRepository(ParqueoAutomovilesContext context)
     : EfCoreRepository<Prqautomovile>(context), IPrqAutomovilesRepository
 {
+    public async Task<IReadOnlyList<Prqautomovile>> GetAllAsync(
+        string? color = null,
+        int? fromYear = null,
+        int? toYear = null,
+        string? manufacturer = null,
+        PRQTipoAutomovil? type = null,
+        CancellationToken cancellationToken = default)
+    {
+        if (fromYear.HasValue != toYear.HasValue || (fromYear.HasValue && fromYear > toYear))
+        {
+            throw new ArgumentException("Debe indicar ambos años y el año inicial no puede superar al final.");
+        }
+
+        var query = Context.Prqautomoviles.AsNoTracking().Include(car => car.PrqingresoAutomoviles).AsQueryable();
+        if (!string.IsNullOrWhiteSpace(color))
+        {
+            query = query.Where(car => EF.Functions.ILike(car.Color, $"%{color}%"));
+        }
+
+        if (fromYear.HasValue)
+        {
+            query = query.Where(car => car.Year >= fromYear.Value && car.Year <= toYear!.Value);
+        }
+
+        if (!string.IsNullOrWhiteSpace(manufacturer))
+        {
+            query = query.Where(car => EF.Functions.ILike(car.Manufacturer, $"%{manufacturer}%"));
+        }
+
+        if (type.HasValue)
+        {
+            query = query.Where(car => car.Type == type.Value);
+        }
+
+        return await query.ToListAsync(cancellationToken);
+    }
+
     public async Task<IReadOnlyList<Prqautomovile>> GetByColorAsync(string color, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(color);

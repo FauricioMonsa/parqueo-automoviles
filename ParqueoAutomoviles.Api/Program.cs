@@ -1,9 +1,13 @@
 using Microsoft.EntityFrameworkCore;
+using System.Text.Json.Serialization;
 using ParqueoAutomoviles.BusinessLogic.Contracts;
 using ParqueoAutomoviles.BusinessLogic.Repositories;
 using ParqueoAutomoviles.Model;
 
 var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.AddControllers().AddJsonOptions(options =>
+    options.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles);
 
 var dataSource = builder.Configuration["DataSource"] ?? "EfCore";
 
@@ -29,6 +33,11 @@ switch (dataSource)
         throw new InvalidOperationException("La configuración DataSource debe ser 'EfCore' o 'Json'.");
 }
 
+builder.Services.AddScoped<IPrqAutomovilesRepository>(serviceProvider =>
+    serviceProvider.GetRequiredService<PrqRepositorySet>().Automoviles);
+
 var app = builder.Build();
+
+app.MapControllers();
 
 app.Run();

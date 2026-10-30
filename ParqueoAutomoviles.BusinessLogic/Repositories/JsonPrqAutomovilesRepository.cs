@@ -7,6 +7,28 @@ namespace ParqueoAutomoviles.BusinessLogic.Repositories;
 public sealed class JsonPrqAutomovilesRepository(JsonPrqDataSource dataSource)
     : JsonRepositoryBase<Prqautomovile>(dataSource, "PRQAutomoviles.json", car => car.Id), IPrqAutomovilesRepository
 {
+    public async Task<IReadOnlyList<Prqautomovile>> GetAllAsync(
+        string? color = null,
+        int? fromYear = null,
+        int? toYear = null,
+        string? manufacturer = null,
+        PRQTipoAutomovil? type = null,
+        CancellationToken cancellationToken = default)
+    {
+        if (fromYear.HasValue != toYear.HasValue || (fromYear.HasValue && fromYear > toYear))
+        {
+            throw new ArgumentException("Debe indicar ambos años y el año inicial no puede superar al final.");
+        }
+
+        var cars = await DataSource.LoadCarsAsync(cancellationToken);
+        return cars.Where(car =>
+                (string.IsNullOrWhiteSpace(color) || car.Color.Contains(color, StringComparison.OrdinalIgnoreCase)) &&
+                (!fromYear.HasValue || (car.Year >= fromYear.Value && car.Year <= toYear!.Value)) &&
+                (string.IsNullOrWhiteSpace(manufacturer) || car.Manufacturer.Contains(manufacturer, StringComparison.OrdinalIgnoreCase)) &&
+                (!type.HasValue || car.Type == type.Value))
+            .ToList();
+    }
+
     public async Task<IReadOnlyList<Prqautomovile>> GetByColorAsync(string color, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(color);
