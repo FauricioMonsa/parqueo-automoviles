@@ -22,7 +22,17 @@ public abstract class EfCoreRepository<TEntity>(ParqueoAutomovilesContext contex
     public async Task UpdateAsync(TEntity entity, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(entity);
-        Context.Set<TEntity>().Update(entity);
+
+        var entityEntry = Context.Entry(entity);
+        var primaryKey = entityEntry.Metadata.FindPrimaryKey()
+            ?? throw new InvalidOperationException($"{typeof(TEntity).Name} no tiene una clave primaria configurada.");
+        var keyValues = primaryKey.Properties
+            .Select(property => entityEntry.Property(property.Name).CurrentValue)
+            .ToArray();
+        var existingEntity = await Context.Set<TEntity>().FindAsync(keyValues, cancellationToken)
+            ?? throw new KeyNotFoundException($"No existe {typeof(TEntity).Name} con la clave indicada.");
+
+        Context.Entry(existingEntity).CurrentValues.SetValues(entity);
         await Context.SaveChangesAsync(cancellationToken);
     }
 
