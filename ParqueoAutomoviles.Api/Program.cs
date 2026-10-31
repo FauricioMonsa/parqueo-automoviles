@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Npgsql;
 using System.Text.Json.Serialization;
 using ParqueoAutomoviles.BusinessLogic.Contracts;
 using ParqueoAutomoviles.BusinessLogic.Repositories;
@@ -21,7 +22,14 @@ switch (dataSource)
                 "Falta configurar ConnectionStrings:MySecretPostgresConnection en los secretos del usuario.");
         }
 
-        builder.Services.AddDbContext<ParqueoAutomovilesContext>(options => options.UseNpgsql(connectionString));
+        var npgsqlDataSourceBuilder = new NpgsqlDataSourceBuilder(connectionString);
+        npgsqlDataSourceBuilder.MapEnum<PRQTipoAutomovil>("user_08.PRQTipoAutomovil");
+        var npgsqlDataSource = npgsqlDataSourceBuilder.Build();
+        builder.Services.AddSingleton(npgsqlDataSource);
+        builder.Services.AddDbContext<ParqueoAutomovilesContext>((serviceProvider, options) =>
+            options.UseNpgsql(
+                serviceProvider.GetRequiredService<NpgsqlDataSource>(),
+                npgsqlOptions => npgsqlOptions.MapEnum<PRQTipoAutomovil>("user_08.PRQTipoAutomovil")));
         builder.Services.AddScoped<PrqRepositorySet>(serviceProvider =>
             PrqRepositoryFactory.FromEfCore(serviceProvider.GetRequiredService<ParqueoAutomovilesContext>()));
         break;
