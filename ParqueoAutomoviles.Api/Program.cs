@@ -35,6 +35,8 @@ switch (dataSource)
 
 builder.Services.AddScoped<IPrqAutomovilesRepository>(serviceProvider =>
     serviceProvider.GetRequiredService<PrqRepositorySet>().Automoviles);
+builder.Services.AddScoped<IPrqParqueoRepository>(serviceProvider =>
+    serviceProvider.GetRequiredService<PrqRepositorySet>().Parqueos);
 
 var app = builder.Build();
 

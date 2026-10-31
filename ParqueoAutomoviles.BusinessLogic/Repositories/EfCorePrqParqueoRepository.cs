@@ -7,11 +7,53 @@ namespace ParqueoAutomoviles.BusinessLogic.Repositories;
 public sealed class EfCorePrqParqueoRepository(ParqueoAutomovilesContext context)
     : EfCoreRepository<Prqparqueo>(context), IPrqParqueoRepository
 {
+    public new async Task<Prqparqueo?> GetByIdAsync(long id, CancellationToken cancellationToken = default) =>
+        await Context.Prqparqueos.AsNoTracking()
+            .Include(parking => parking.PrqingresoAutomoviles)
+            .FirstOrDefaultAsync(parking => parking.Id == id, cancellationToken);
+
+    public async Task<IReadOnlyList<Prqparqueo>> GetAllAsync(
+        string? provinceName = null,
+        string? name = null,
+        decimal? minPrice = null,
+        decimal? maxPrice = null,
+        CancellationToken cancellationToken = default)
+    {
+        if (minPrice.HasValue && maxPrice.HasValue && minPrice > maxPrice)
+        {
+            throw new ArgumentException("El precio mínimo no puede ser mayor que el precio máximo.");
+        }
+
+        var query = Context.Prqparqueos.AsNoTracking().Include(parking => parking.PrqingresoAutomoviles).AsQueryable();
+        if (!string.IsNullOrWhiteSpace(provinceName))
+        {
+            query = query.Where(parking => EF.Functions.ILike(parking.ProvinceName, $"%{provinceName}%"));
+        }
+
+        if (!string.IsNullOrWhiteSpace(name))
+        {
+            query = query.Where(parking => EF.Functions.ILike(parking.Name, $"%{name}%"));
+        }
+
+        if (minPrice.HasValue)
+        {
+            query = query.Where(parking => parking.PricePerHour >= minPrice.Value);
+        }
+
+        if (maxPrice.HasValue)
+        {
+            query = query.Where(parking => parking.PricePerHour <= maxPrice.Value);
+        }
+
+        return await query.ToListAsync(cancellationToken);
+    }
+
     public async Task<IReadOnlyList<Prqparqueo>> GetByProvinceNameAsync(string provinceName, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(provinceName);
         var pattern = $"%{provinceName}%";
         return await Context.Prqparqueos.AsNoTracking()
+            .Include(parking => parking.PrqingresoAutomoviles)
             .Where(parking => EF.Functions.ILike(parking.ProvinceName, pattern))
             .ToListAsync(cancellationToken);
     }
@@ -21,6 +63,7 @@ public sealed class EfCorePrqParqueoRepository(ParqueoAutomovilesContext context
         ArgumentNullException.ThrowIfNull(name);
         var pattern = $"%{name}%";
         return await Context.Prqparqueos.AsNoTracking()
+            .Include(parking => parking.PrqingresoAutomoviles)
             .Where(parking => EF.Functions.ILike(parking.Name, pattern))
             .ToListAsync(cancellationToken);
     }
@@ -33,6 +76,7 @@ public sealed class EfCorePrqParqueoRepository(ParqueoAutomovilesContext context
         }
 
         return await Context.Prqparqueos.AsNoTracking()
+            .Include(parking => parking.PrqingresoAutomoviles)
             .Where(parking => parking.PricePerHour >= minPrice && parking.PricePerHour <= maxPrice)
             .ToListAsync(cancellationToken);
     }
