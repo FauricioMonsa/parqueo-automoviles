@@ -1,6 +1,5 @@
 using ParqueoAutomoviles.BusinessLogic.Contracts;
 using ParqueoAutomoviles.BusinessLogic.Json;
-using ParqueoAutomoviles.BusinessLogic.Models;
 using ParqueoAutomoviles.Model;
 
 namespace ParqueoAutomoviles.BusinessLogic.Repositories;
@@ -14,23 +13,42 @@ public sealed class JsonPrqIngresoAutomovilesRepository(JsonPrqDataSource dataSo
             .Select(parking => (decimal?)parking.PricePerHour)
             .FirstOrDefault();
 
-    public async Task<IReadOnlyList<AutomobileParkingEntryReport>> GetByTypeAndDateRangeAsync(
+    public async Task<PrqingresoAutomovileCustomAttributes?> GetByIdWithDetailsAsync(
+        long id,
+        CancellationToken cancellationToken = default)
+    {
+        var records = await LoadDetailedEntriesAsync(cancellationToken);
+        return records.FirstOrDefault(entry => entry.Consecutive == id);
+    }
+
+    public async Task<IReadOnlyList<PrqingresoAutomovileCustomAttributes>> GetAllAsync(
+        PRQTipoAutomovil? type = null,
+        DateTime? fromDate = null,
+        DateTime? toDate = null,
+        string? provinceName = null,
+        CancellationToken cancellationToken = default)
+    {
+        ValidateOptionalDateRange(fromDate, toDate);
+        var entries = await LoadDetailedEntriesAsync(cancellationToken);
+        return entries.Where(entry =>
+                (!type.HasValue || entry.Car.Type == type.Value) &&
+                (!fromDate.HasValue || (entry.EntryDatetime >= fromDate.Value && entry.EntryDatetime <= toDate!.Value)) &&
+                (string.IsNullOrWhiteSpace(provinceName) || entry.Parking.ProvinceName.Contains(provinceName, StringComparison.OrdinalIgnoreCase)))
+            .OrderBy(entry => entry.EntryDatetime)
+            .ToList();
+    }
+
+    public async Task<IReadOnlyList<PrqingresoAutomovileCustomAttributes>> GetByTypeAndDateRangeAsync(
         PRQTipoAutomovil type,
         DateTime from,
         DateTime to,
         CancellationToken cancellationToken = default)
     {
         ValidateDateRange(from, to);
-        var cars = await DataSource.LoadCarsAsync(cancellationToken);
-        var matchingCarIds = cars.Where(car => car.Type == type).Select(car => car.Id).ToHashSet();
-        var entries = (await DataSource.LoadEntriesAsync(cancellationToken))
-            .Where(entry => matchingCarIds.Contains(entry.CarId) && entry.EntryDatetime >= from && entry.EntryDatetime <= to)
-            .OrderBy(entry => entry.EntryDatetime)
-            .ToList();
-        return await BuildReportsAsync(entries, cars, cancellationToken);
+        return await GetAllAsync(type, from, to, cancellationToken: cancellationToken);
     }
 
-    public async Task<IReadOnlyList<AutomobileParkingEntryReport>> GetByProvinceAndDateRangeAsync(
+    public async Task<IReadOnlyList<PrqingresoAutomovileCustomAttributes>> GetByProvinceAndDateRangeAsync(
         string provinceName,
         DateTime from,
         DateTime to,
@@ -38,27 +56,18 @@ public sealed class JsonPrqIngresoAutomovilesRepository(JsonPrqDataSource dataSo
     {
         ArgumentNullException.ThrowIfNull(provinceName);
         ValidateDateRange(from, to);
-        var provinceParkingIds = (await DataSource.LoadParkingsAsync(cancellationToken))
-            .Where(parking => parking.ProvinceName.Contains(provinceName, StringComparison.OrdinalIgnoreCase))
-            .Select(parking => parking.Id)
-            .ToHashSet();
-        var cars = await DataSource.LoadCarsAsync(cancellationToken);
-        var entries = (await DataSource.LoadEntriesAsync(cancellationToken))
-            .Where(entry => provinceParkingIds.Contains(entry.ParkingId) && entry.EntryDatetime >= from && entry.EntryDatetime <= to)
-            .OrderBy(entry => entry.EntryDatetime)
-            .ToList();
-        return await BuildReportsAsync(entries, cars, cancellationToken);
+        return await GetAllAsync(fromDate: from, toDate: to, provinceName: provinceName, cancellationToken: cancellationToken);
     }
 
-    private async Task<IReadOnlyList<AutomobileParkingEntryReport>> BuildReportsAsync(
-        IReadOnlyList<PrqingresoAutomovile> entries,
-        IReadOnlyList<Prqautomovile> cars,
+    private async Task<IReadOnlyList<PrqingresoAutomovileCustomAttributes>> LoadDetailedEntriesAsync(
         CancellationToken cancellationToken)
     {
+        var entries = await DataSource.LoadEntriesAsync(cancellationToken);
+        var cars = await DataSource.LoadCarsAsync(cancellationToken);
         var parkings = await DataSource.LoadParkingsAsync(cancellationToken);
         var carsById = cars.ToDictionary(car => car.Id);
         var parkingsById = parkings.ToDictionary(parking => parking.Id);
-        var reports = new List<AutomobileParkingEntryReport>(entries.Count);
+        var detailedEntries = new List<PrqingresoAutomovileCustomAttributes>(entries.Count);
 
         foreach (var entry in entries)
         {
@@ -68,27 +77,32 @@ public sealed class JsonPrqIngresoAutomovilesRepository(JsonPrqDataSource dataSo
                 continue;
             }
 
-            var pricePerHour = await GetPricePerHourByParkingAsync(entry.ParkingId, cancellationToken);
-            var amountToPay = entry.ExitDatetime is null || pricePerHour is null
-                ? null
-                : (decimal?)(decimal)(entry.ExitDatetime.Value - entry.EntryDatetime).TotalHours * pricePerHour.Value;
-
-            reports.Add(new AutomobileParkingEntryReport(
-                entry.Consecutive,
-                entry.CarId,
-                car.Color,
-                car.Year,
-                car.Manufacturer,
-                car.Type,
-                entry.ParkingId,
-                parking.Name,
-                parking.ProvinceName,
-                entry.EntryDatetime,
-                entry.ExitDatetime,
-                amountToPay));
+            detailedEntries.Add(new PrqingresoAutomovileCustomAttributes
+            {
+                Consecutive = entry.Consecutive,
+                ParkingId = entry.ParkingId,
+                CarId = entry.CarId,
+                EntryDatetime = entry.EntryDatetime,
+                ExitDatetime = entry.ExitDatetime,
+                Car = car,
+                Parking = parking
+            });
         }
 
-        return reports;
+        return detailedEntries;
+    }
+
+    private static void ValidateOptionalDateRange(DateTime? from, DateTime? to)
+    {
+        if (from.HasValue != to.HasValue)
+        {
+            throw new ArgumentException("Debe indicar tanto la fecha inicial como la fecha final.");
+        }
+
+        if (from.HasValue)
+        {
+            ValidateDateRange(from.Value, to!.Value);
+        }
     }
 
     private static void ValidateDateRange(DateTime from, DateTime to)

@@ -1,6 +1,5 @@
 using Microsoft.EntityFrameworkCore;
 using ParqueoAutomoviles.BusinessLogic.Contracts;
-using ParqueoAutomoviles.BusinessLogic.Models;
 using ParqueoAutomoviles.Model;
 
 namespace ParqueoAutomoviles.BusinessLogic.Repositories;
@@ -14,71 +13,91 @@ public sealed class EfCorePrqIngresoAutomovilesRepository(ParqueoAutomovilesCont
             .Select(parking => (decimal?)parking.PricePerHour)
             .SingleOrDefaultAsync(cancellationToken);
 
-    public async Task<IReadOnlyList<AutomobileParkingEntryReport>> GetByTypeAndDateRangeAsync(
+    public async Task<PrqingresoAutomovileCustomAttributes?> GetByIdWithDetailsAsync(
+        long id,
+        CancellationToken cancellationToken = default)
+    {
+        var entry = await QueryEntries()
+            .FirstOrDefaultAsync(item => item.Consecutive == id, cancellationToken);
+        return entry is null ? null : ToCustomAttributes(entry);
+    }
+
+    public async Task<IReadOnlyList<PrqingresoAutomovileCustomAttributes>> GetAllAsync(
+        PRQTipoAutomovil? type = null,
+        DateTime? fromDate = null,
+        DateTime? toDate = null,
+        string? provinceName = null,
+        CancellationToken cancellationToken = default)
+    {
+        ValidateOptionalDateRange(fromDate, toDate);
+        var query = QueryEntries();
+        if (type.HasValue)
+        {
+            query = query.Where(entry => entry.Car.Type == type.Value);
+        }
+
+        if (fromDate.HasValue)
+        {
+            query = query.Where(entry => entry.EntryDatetime >= fromDate.Value && entry.EntryDatetime <= toDate!.Value);
+        }
+
+        if (!string.IsNullOrWhiteSpace(provinceName))
+        {
+            query = query.Where(entry => EF.Functions.ILike(entry.Parking.ProvinceName, $"%{provinceName}%"));
+        }
+
+        var entries = await query.OrderBy(entry => entry.EntryDatetime).ToListAsync(cancellationToken);
+        return entries.Select(ToCustomAttributes).ToList();
+    }
+
+    public async Task<IReadOnlyList<PrqingresoAutomovileCustomAttributes>> GetByTypeAndDateRangeAsync(
         PRQTipoAutomovil type,
         DateTime from,
         DateTime to,
         CancellationToken cancellationToken = default)
     {
         ValidateDateRange(from, to);
-        var entries = await Context.PrqingresoAutomoviles.AsNoTracking()
-            .Include(entry => entry.Car)
-            .Include(entry => entry.Parking)
-            .Where(entry => entry.Car.Type == type && entry.EntryDatetime >= from && entry.EntryDatetime <= to)
-            .OrderBy(entry => entry.EntryDatetime)
-            .ToListAsync(cancellationToken);
-
-        return await BuildReportsAsync(entries, cancellationToken);
+        return await GetAllAsync(type, from, to, cancellationToken: cancellationToken);
     }
 
-    public async Task<IReadOnlyList<AutomobileParkingEntryReport>> GetByProvinceAndDateRangeAsync(
+    public async Task<IReadOnlyList<PrqingresoAutomovileCustomAttributes>> GetByProvinceAndDateRangeAsync(
         string provinceName,
         DateTime from,
         DateTime to,
         CancellationToken cancellationToken = default)
     {
-        ArgumentNullException.ThrowIfNull(provinceName);
         ValidateDateRange(from, to);
-        var provincePattern = $"%{provinceName}%";
-        var entries = await Context.PrqingresoAutomoviles.AsNoTracking()
-            .Include(entry => entry.Car)
-            .Include(entry => entry.Parking)
-            .Where(entry => EF.Functions.ILike(entry.Parking.ProvinceName, provincePattern)
-                && entry.EntryDatetime >= from && entry.EntryDatetime <= to)
-            .OrderBy(entry => entry.EntryDatetime)
-            .ToListAsync(cancellationToken);
-
-        return await BuildReportsAsync(entries, cancellationToken);
+        ArgumentNullException.ThrowIfNull(provinceName);
+        return await GetAllAsync(fromDate: from, toDate: to, provinceName: provinceName, cancellationToken: cancellationToken);
     }
 
-    private async Task<IReadOnlyList<AutomobileParkingEntryReport>> BuildReportsAsync(
-        IReadOnlyList<PrqingresoAutomovile> entries,
-        CancellationToken cancellationToken)
-    {
-        var reports = new List<AutomobileParkingEntryReport>(entries.Count);
-        foreach (var entry in entries)
-        {
-            var pricePerHour = await GetPricePerHourByParkingAsync(entry.ParkingId, cancellationToken);
-            var amountToPay = entry.ExitDatetime is null || pricePerHour is null
-                ? null
-                : (decimal?)(decimal)(entry.ExitDatetime.Value - entry.EntryDatetime).TotalHours * pricePerHour.Value;
+    private IQueryable<PrqingresoAutomovile> QueryEntries() =>
+        Context.PrqingresoAutomoviles.AsNoTracking()
+            .Include(entry => entry.Car)
+            .Include(entry => entry.Parking);
 
-            reports.Add(new AutomobileParkingEntryReport(
-                entry.Consecutive,
-                entry.CarId,
-                entry.Car.Color,
-                entry.Car.Year,
-                entry.Car.Manufacturer,
-                entry.Car.Type,
-                entry.ParkingId,
-                entry.Parking.Name,
-                entry.Parking.ProvinceName,
-                entry.EntryDatetime,
-                entry.ExitDatetime,
-                amountToPay));
+    private static PrqingresoAutomovileCustomAttributes ToCustomAttributes(PrqingresoAutomovile entry) => new()
+    {
+        Consecutive = entry.Consecutive,
+        ParkingId = entry.ParkingId,
+        CarId = entry.CarId,
+        EntryDatetime = entry.EntryDatetime,
+        ExitDatetime = entry.ExitDatetime,
+        Car = entry.Car,
+        Parking = entry.Parking
+    };
+
+    private static void ValidateOptionalDateRange(DateTime? from, DateTime? to)
+    {
+        if (from.HasValue != to.HasValue)
+        {
+            throw new ArgumentException("Debe indicar tanto la fecha inicial como la fecha final.");
         }
 
-        return reports;
+        if (from.HasValue)
+        {
+            ValidateDateRange(from.Value, to!.Value);
+        }
     }
 
     private static void ValidateDateRange(DateTime from, DateTime to)

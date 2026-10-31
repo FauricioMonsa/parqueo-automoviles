@@ -37,6 +37,8 @@ builder.Services.AddScoped<IPrqAutomovilesRepository>(serviceProvider =>
     serviceProvider.GetRequiredService<PrqRepositorySet>().Automoviles);
 builder.Services.AddScoped<IPrqParqueoRepository>(serviceProvider =>
     serviceProvider.GetRequiredService<PrqRepositorySet>().Parqueos);
+builder.Services.AddScoped<IPrqIngresoAutomovilesRepository>(serviceProvider =>
+    serviceProvider.GetRequiredService<PrqRepositorySet>().Ingresos);
 
 var app = builder.Build();
 
