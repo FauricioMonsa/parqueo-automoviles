@@ -22,6 +22,17 @@ public sealed class EfCorePrqIngresoAutomovilesRepository(ParqueoAutomovilesCont
         return entry is null ? null : ToCustomAttributes(entry);
     }
 
+    public async Task<IReadOnlyList<PrqingresoAutomovileCustomAttributes>> GetByCarIdAsync(
+        long carId,
+        CancellationToken cancellationToken = default)
+    {
+        var entries = await QueryEntries()
+            .Where(entry => entry.CarId == carId)
+            .OrderBy(entry => entry.EntryDatetime)
+            .ToListAsync(cancellationToken);
+        return entries.Select(ToCustomAttributes).ToList();
+    }
+
     public async Task<IReadOnlyList<PrqingresoAutomovileCustomAttributes>> GetAllAsync(
         PRQTipoAutomovil? type = null,
         DateTime? fromDate = null,

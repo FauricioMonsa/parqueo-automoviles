@@ -6,6 +6,7 @@ public interface IPrqIngresoAutomovilesRepository : IRepository<PrqingresoAutomo
 {
     Task<decimal?> GetPricePerHourByParkingAsync(long parkingId, CancellationToken cancellationToken = default);
     Task<PrqingresoAutomovileCustomAttributes?> GetByIdWithDetailsAsync(long id, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<PrqingresoAutomovileCustomAttributes>> GetByCarIdAsync(long carId, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<PrqingresoAutomovileCustomAttributes>> GetAllAsync(
         PRQTipoAutomovil? type = null,
         DateTime? fromDate = null,

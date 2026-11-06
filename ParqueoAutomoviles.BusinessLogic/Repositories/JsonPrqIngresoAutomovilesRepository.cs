@@ -21,6 +21,14 @@ public sealed class JsonPrqIngresoAutomovilesRepository(JsonPrqDataSource dataSo
         return records.FirstOrDefault(entry => entry.Consecutive == id);
     }
 
+    public async Task<IReadOnlyList<PrqingresoAutomovileCustomAttributes>> GetByCarIdAsync(
+        long carId,
+        CancellationToken cancellationToken = default) =>
+        (await LoadDetailedEntriesAsync(cancellationToken))
+            .Where(entry => entry.CarId == carId)
+            .OrderBy(entry => entry.EntryDatetime)
+            .ToList();
+
     public async Task<IReadOnlyList<PrqingresoAutomovileCustomAttributes>> GetAllAsync(
         PRQTipoAutomovil? type = null,
         DateTime? fromDate = null,

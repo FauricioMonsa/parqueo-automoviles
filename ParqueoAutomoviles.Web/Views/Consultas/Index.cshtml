@@ -1,0 +1,168 @@
+@{
+    ViewData["Title"] = "Consultas";
+}
+
+<h1>Consulta de automóviles e ingresos</h1>
+
+<div class="row g-3 align-items-end mb-4">
+    <div class="col-sm-5">
+        <label for="automobileType" class="form-label">Tipo de automóvil</label>
+        <select id="automobileType" class="form-select">
+            <option value="">Seleccione un tipo</option>
+            @foreach (var type in Enum.GetValues<PRQTipoAutomovil>())
+            {
+                <option value="@type">@(type == PRQTipoAutomovil.CuatroX4 ? "4x4" : type.ToString())</option>
+            }
+        </select>
+    </div>
+    <div class="col-sm-3">
+        <button id="searchAutomobiles" type="button" class="btn btn-primary">Buscar</button>
+    </div>
+</div>
+
+<div id="queryMessage" class="alert d-none" role="status" aria-live="polite"></div>
+<div id="automobilesPanel" class="mb-4 d-none">
+    <h2>Automóviles</h2>
+    <p>Seleccione un automóvil para consultar sus ingresos al parqueo.</p>
+    <div class="table-responsive">
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th>Id</th>
+                    <th>Color</th>
+                    <th>Año</th>
+                    <th>Fabricante</th>
+                    <th>Tipo</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody id="automobilesTableBody"></tbody>
+        </table>
+    </div>
+</div>
+
+<section id="entriesPanel" class="d-none">
+    <h2>Ingresos del automóvil <span id="selectedAutomobile"></span></h2>
+    <div class="table-responsive">
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th>Id parqueo</th>
+                    <th>Entrada</th>
+                    <th>Salida</th>
+                    <th>Duración (minutos)</th>
+                    <th>Duración (horas)</th>
+                    <th>Monto a pagar</th>
+                </tr>
+            </thead>
+            <tbody id="entriesTableBody"></tbody>
+        </table>
+    </div>
+</section>
+
+@section Scripts {
+    <script>
+        const typeSelect = document.getElementById("automobileType");
+        const searchButton = document.getElementById("searchAutomobiles");
+        const message = document.getElementById("queryMessage");
+        const automobilesPanel = document.getElementById("automobilesPanel");
+        const automobilesTableBody = document.getElementById("automobilesTableBody");
+        const entriesPanel = document.getElementById("entriesPanel");
+        const entriesTableBody = document.getElementById("entriesTableBody");
+        const selectedAutomobile = document.getElementById("selectedAutomobile");
+
+        function showMessage(text, isError) {
+            message.textContent = text;
+            message.className = `alert ${isError ? "alert-danger" : "alert-info"}`;
+        }
+
+        function addCell(row, value) {
+            const cell = document.createElement("td");
+            cell.textContent = value;
+            row.appendChild(cell);
+        }
+
+        function formatDate(value) {
+            return value ? new Date(value).toLocaleString() : "En curso";
+        }
+
+        searchButton.addEventListener("click", async () => {
+            entriesPanel.classList.add("d-none");
+            automobilesPanel.classList.add("d-none");
+            automobilesTableBody.replaceChildren();
+
+            if (!typeSelect.value) {
+                automobilesPanel.classList.add("d-none");
+                showMessage("Seleccione un tipo de automóvil.", true);
+                return;
+            }
+
+            searchButton.disabled = true;
+            showMessage("Buscando automóviles...", false);
+            try {
+                const response = await fetch(`@Url.Action("AutomovilesPorTipo", "Consultas")?type=${encodeURIComponent(typeSelect.value)}`);
+                const automobiles = await response.json();
+                if (!response.ok) {
+                    throw new Error(automobiles.message ?? "No se pudieron consultar los automóviles.");
+                }
+
+                for (const car of automobiles) {
+                    const row = document.createElement("tr");
+                    addCell(row, car.id);
+                    addCell(row, car.color);
+                    addCell(row, car.year);
+                    addCell(row, car.manufacturer);
+                    addCell(row, car.type);
+
+                    const actionCell = document.createElement("td");
+                    const selectCarButton = document.createElement("button");
+                    selectCarButton.type = "button";
+                    selectCarButton.className = "btn btn-sm btn-outline-primary";
+                    selectCarButton.textContent = "Ver ingresos";
+                    selectCarButton.addEventListener("click", () => loadEntries(car));
+                    actionCell.appendChild(selectCarButton);
+                    row.appendChild(actionCell);
+                    automobilesTableBody.appendChild(row);
+                }
+
+                automobilesPanel.classList.remove("d-none");
+                showMessage(automobiles.length ? "Seleccione un automóvil para ver sus ingresos." : "No se encontraron automóviles de este tipo.", false);
+            } catch (error) {
+                showMessage(error.message, true);
+            } finally {
+                searchButton.disabled = false;
+            }
+        });
+
+        async function loadEntries(car) {
+            entriesPanel.classList.add("d-none");
+            entriesTableBody.replaceChildren();
+            selectedAutomobile.textContent = `#${car.id} - ${car.manufacturer} ${car.year}`;
+            showMessage("Buscando ingresos...", false);
+
+            try {
+                const response = await fetch(`@Url.Action("IngresosPorAutomovil", "Consultas")?carId=${encodeURIComponent(car.id)}`);
+                const entries = await response.json();
+                if (!response.ok) {
+                    throw new Error(entries.message ?? "No se pudieron consultar los ingresos.");
+                }
+
+                for (const entry of entries) {
+                    const row = document.createElement("tr");
+                    addCell(row, entry.parkingId);
+                    addCell(row, formatDate(entry.entryDateTime));
+                    addCell(row, formatDate(entry.exitDateTime));
+                    addCell(row, Number(entry.stayDurationMinutes).toFixed(0));
+                    addCell(row, Number(entry.stayDurationHours).toFixed(2));
+                    addCell(row, Number(entry.amountToPay).toLocaleString(undefined, { style: "currency", currency: "CRC" }));
+                    entriesTableBody.appendChild(row);
+                }
+
+                entriesPanel.classList.remove("d-none");
+                showMessage(entries.length ? "Ingresos cargados." : "El automóvil no tiene ingresos registrados.", false);
+            } catch (error) {
+                showMessage(error.message, true);
+            }
+        }
+    </script>
+}

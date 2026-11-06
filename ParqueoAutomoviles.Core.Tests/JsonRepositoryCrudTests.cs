@@ -6,6 +6,35 @@ namespace ParqueoAutomoviles.Core.Tests;
 public sealed class JsonRepositoryCrudTests
 {
     [Fact]
+    public async Task JsonIngresos_GetByCarIdReturnsOnlyMatchingEntriesWithDetails()
+    {
+        var folder = Path.Combine(AppContext.BaseDirectory, $"json-car-entries-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(folder);
+        await File.WriteAllTextAsync(Path.Combine(folder, "PRQAutomoviles.json"),
+            """[{"id":1,"color":"Azul","year":2024,"manufacturer":"Honda","type":"sedan"},{"id":2,"color":"Rojo","year":2023,"manufacturer":"Toyota","type":"moto"}]""");
+        await File.WriteAllTextAsync(Path.Combine(folder, "PRQParqueo.json"),
+            """[{"id":10,"province_name":"San José","name":"Parqueo Central","price_per_hour":1250.00}]""");
+        await File.WriteAllTextAsync(Path.Combine(folder, "PRQIngresoAutomoviles.json"),
+            """[{"consecutive":1,"parking_id":10,"car_id":1,"entry_datetime":"2026-10-18T07:30:00","exit_datetime":"2026-10-18T09:15:00"},{"consecutive":2,"parking_id":10,"car_id":2,"entry_datetime":"2026-10-18T08:00:00","exit_datetime":"2026-10-18T09:00:00"}]""");
+
+        try
+        {
+            var repository = PrqRepositoryFactory.FromJson(folder).Ingresos;
+
+            var entries = await repository.GetByCarIdAsync(1);
+
+            var entry = Assert.Single(entries);
+            Assert.Equal(1, entry.CarId);
+            Assert.Equal(10, entry.Parking.Id);
+            Assert.Equal(1250m, entry.Parking.PricePerHour);
+        }
+        finally
+        {
+            Directory.Delete(folder, recursive: true);
+        }
+    }
+
+    [Fact]
     public async Task AllJsonRepositories_InsertUpdateAndDeleteByPrimaryKey()
     {
         var folder = Path.Combine(AppContext.BaseDirectory, $"json-crud-{Guid.NewGuid():N}");
