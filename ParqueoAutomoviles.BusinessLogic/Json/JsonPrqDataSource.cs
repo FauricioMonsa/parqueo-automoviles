@@ -41,9 +41,16 @@ public sealed class JsonPrqDataSource
         string fileName,
         TEntity entity,
         Func<TEntity, long> keySelector,
+        Action<TEntity, long> keySetter,
         CancellationToken cancellationToken) where TEntity : class =>
         MutateRecordsAsync<TEntity>(fileName, records =>
         {
+            if (keySelector(entity) == 0)
+            {
+                var nextId = checked(records.Select(keySelector).DefaultIfEmpty(0).Max() + 1);
+                keySetter(entity, nextId);
+            }
+
             if (records.Any(record => keySelector(record) == keySelector(entity)))
             {
                 throw new InvalidOperationException($"Ya existe un registro con clave {keySelector(entity)} en {fileName}.");

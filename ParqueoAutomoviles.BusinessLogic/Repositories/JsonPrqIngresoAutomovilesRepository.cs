@@ -5,7 +5,7 @@ using ParqueoAutomoviles.Model;
 namespace ParqueoAutomoviles.BusinessLogic.Repositories;
 
 public sealed class JsonPrqIngresoAutomovilesRepository(JsonPrqDataSource dataSource)
-    : JsonRepositoryBase<PrqingresoAutomovile>(dataSource, "PRQIngresoAutomoviles.json", entry => entry.Consecutive), IPrqIngresoAutomovilesRepository
+    : JsonRepositoryBase<PrqingresoAutomovile>(dataSource, "PRQIngresoAutomoviles.json", entry => entry.Consecutive, (entry, id) => entry.Consecutive = id), IPrqIngresoAutomovilesRepository
 {
     public async Task<decimal?> GetPricePerHourByParkingAsync(long parkingId, CancellationToken cancellationToken = default) =>
         (await DataSource.LoadParkingsAsync(cancellationToken))

@@ -6,7 +6,8 @@ namespace ParqueoAutomoviles.BusinessLogic.Repositories;
 public abstract class JsonRepositoryBase<TEntity>(
     JsonPrqDataSource dataSource,
     string fileName,
-    Func<TEntity, long> keySelector) : IRepository<TEntity>
+    Func<TEntity, long> keySelector,
+    Action<TEntity, long> keySetter) : IRepository<TEntity>
     where TEntity : class
 {
     protected JsonPrqDataSource DataSource { get; } = dataSource;
@@ -16,7 +17,7 @@ public abstract class JsonRepositoryBase<TEntity>(
             .FirstOrDefault(entity => keySelector(entity) == id);
 
     public Task InsertAsync(TEntity entity, CancellationToken cancellationToken = default) =>
-        DataSource.InsertRecordAsync(fileName, entity, keySelector, cancellationToken);
+        DataSource.InsertRecordAsync(fileName, entity, keySelector, keySetter, cancellationToken);
 
     public Task UpdateAsync(TEntity entity, CancellationToken cancellationToken = default) =>
         DataSource.UpdateRecordAsync(fileName, entity, keySelector, cancellationToken);

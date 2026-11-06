@@ -5,7 +5,7 @@ using ParqueoAutomoviles.Model;
 namespace ParqueoAutomoviles.BusinessLogic.Repositories;
 
 public sealed class JsonPrqAutomovilesRepository(JsonPrqDataSource dataSource)
-    : JsonRepositoryBase<Prqautomovile>(dataSource, "PRQAutomoviles.json", car => car.Id), IPrqAutomovilesRepository
+    : JsonRepositoryBase<Prqautomovile>(dataSource, "PRQAutomoviles.json", car => car.Id, (car, id) => car.Id = id), IPrqAutomovilesRepository
 {
     public async Task<IReadOnlyList<Prqautomovile>> GetAllAsync(
         string? color = null,

@@ -6,6 +6,58 @@ namespace ParqueoAutomoviles.Core.Tests;
 public sealed class JsonRepositoryCrudTests
 {
     [Fact]
+    public async Task JsonRepositories_AssignNextIdWhenInsertingZeroIdRecords()
+    {
+        var folder = Path.Combine(AppContext.BaseDirectory, $"json-generated-ids-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(folder);
+        await File.WriteAllTextAsync(Path.Combine(folder, "PRQAutomoviles.json"),
+            """[{"id":2,"color":"Azul","year":2024,"manufacturer":"Honda","type":"sedan"},{"id":7,"color":"Rojo","year":2023,"manufacturer":"Toyota","type":"moto"}]""");
+        await File.WriteAllTextAsync(Path.Combine(folder, "PRQParqueo.json"),
+            """[{"id":4,"province_name":"San José","name":"Parqueo Central","price_per_hour":1250.00},{"id":9,"province_name":"Alajuela","name":"Parqueo Norte","price_per_hour":900.00}]""");
+        await File.WriteAllTextAsync(Path.Combine(folder, "PRQIngresoAutomoviles.json"),
+            """[{"consecutive":3,"parking_id":4,"car_id":2,"entry_datetime":"2026-10-18T07:30:00","exit_datetime":"2026-10-18T09:15:00"},{"consecutive":8,"parking_id":9,"car_id":7,"entry_datetime":"2026-10-18T08:00:00","exit_datetime":null}]""");
+
+        try
+        {
+            var repositories = PrqRepositoryFactory.FromJson(folder);
+            var car = new Prqautomovile
+            {
+                Color = "Negro",
+                Year = 2025,
+                Manufacturer = "Nissan",
+                Type = PRQTipoAutomovil.Sedan
+            };
+            var parking = new Prqparqueo
+            {
+                ProvinceName = "Heredia",
+                Name = "Parqueo Nuevo",
+                PricePerHour = 1000m
+            };
+            var entry = new PrqingresoAutomovile
+            {
+                ParkingId = 4,
+                CarId = 2,
+                EntryDatetime = new DateTime(2026, 10, 23, 8, 0, 0)
+            };
+
+            await repositories.Automoviles.InsertAsync(car);
+            await repositories.Parqueos.InsertAsync(parking);
+            await repositories.Ingresos.InsertAsync(entry);
+
+            Assert.Equal(8, car.Id);
+            Assert.Equal(10, parking.Id);
+            Assert.Equal(9, entry.Consecutive);
+            Assert.NotNull(await repositories.Automoviles.GetByIdAsync(8));
+            Assert.NotNull(await repositories.Parqueos.GetByIdAsync(10));
+            Assert.NotNull(await repositories.Ingresos.GetByIdAsync(9));
+        }
+        finally
+        {
+            Directory.Delete(folder, recursive: true);
+        }
+    }
+
+    [Fact]
     public async Task JsonIngresos_GetByCarIdReturnsOnlyMatchingEntriesWithDetails()
     {
         var folder = Path.Combine(AppContext.BaseDirectory, $"json-car-entries-{Guid.NewGuid():N}");
