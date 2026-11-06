@@ -4,4 +4,5 @@
   <Project Path="ParqueoAutomoviles.Core.Tests/ParqueoAutomoviles.Core.Tests.csproj" />
   <Project Path="ParqueoAutomoviles.Core/ParqueoAutomoviles.Core.csproj" />
   <Project Path="ParqueoAutomoviles.Model/ParqueoAutomoviles.Model.csproj" />
+  <Project Path="ParqueoAutomoviles.Web/ParqueoAutomoviles.Web.csproj" />
 </Solution>

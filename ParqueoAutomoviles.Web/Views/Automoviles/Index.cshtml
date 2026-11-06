@@ -1,0 +1,54 @@
+@model AutomovilesIndexViewModel
+@{
+    ViewData["Title"] = "Automóviles";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h1>Automóviles</h1>
+    <a asp-action="Create" class="btn btn-primary">Crear automóvil</a>
+</div>
+
+<form asp-action="Index" method="get" class="row g-3 align-items-end mb-4">
+    <div asp-validation-summary="All" class="text-danger"></div>
+    <div class="col-sm-4">
+        <label asp-for="MinYear" class="form-label">Año mínimo</label>
+        <input asp-for="MinYear" class="form-control" type="number" />
+    </div>
+    <div class="col-sm-4">
+        <label asp-for="MaxYear" class="form-label">Año máximo</label>
+        <input asp-for="MaxYear" class="form-control" type="number" />
+    </div>
+    <div class="col-sm-4">
+        <button type="submit" name="search" value="true" class="btn btn-secondary">Buscar</button>
+    </div>
+</form>
+
+<table class="table table-striped">
+    <thead>
+        <tr>
+            <th>Id</th>
+            <th>Color</th>
+            <th>Año</th>
+            <th>Fabricante</th>
+            <th>Tipo</th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var car in Model.Automoviles)
+        {
+            <tr>
+                <td>@car.Id</td>
+                <td>@car.Color</td>
+                <td>@car.Year</td>
+                <td>@car.Manufacturer</td>
+                <td>@(car.Type == PRQTipoAutomovil.CuatroX4 ? "4x4" : car.Type.ToString())</td>
+                <td class="text-nowrap">
+                    <a asp-action="Details" asp-route-id="@car.Id" class="btn btn-sm btn-outline-info">Detalles</a>
+                    <a asp-action="Edit" asp-route-id="@car.Id" class="btn btn-sm btn-outline-primary">Editar</a>
+                    <a asp-action="Delete" asp-route-id="@car.Id" class="btn btn-sm btn-outline-danger">Eliminar</a>
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>

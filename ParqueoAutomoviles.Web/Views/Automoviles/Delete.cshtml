@@ -1,0 +1,23 @@
+@model Prqautomovile
+@{
+    ViewData["Title"] = "Eliminar automóvil";
+}
+
+<h1>Eliminar automóvil</h1>
+<p>¿Está seguro de que desea eliminar este automóvil?</p>
+<dl class="row">
+    <dt class="col-sm-2">Id</dt>
+    <dd class="col-sm-10">@Model.Id</dd>
+    <dt class="col-sm-2">Color</dt>
+    <dd class="col-sm-10">@Model.Color</dd>
+    <dt class="col-sm-2">Año</dt>
+    <dd class="col-sm-10">@Model.Year</dd>
+    <dt class="col-sm-2">Fabricante</dt>
+    <dd class="col-sm-10">@Model.Manufacturer</dd>
+    <dt class="col-sm-2">Tipo</dt>
+    <dd class="col-sm-10">@(Model.Type == PRQTipoAutomovil.CuatroX4 ? "4x4" : Model.Type.ToString())</dd>
+</dl>
+<form asp-action="Delete" asp-route-id="@Model.Id" method="post">
+    <button type="submit" class="btn btn-danger">Eliminar</button>
+    <a asp-action="Index" class="btn btn-secondary">Cancelar</a>
+</form>

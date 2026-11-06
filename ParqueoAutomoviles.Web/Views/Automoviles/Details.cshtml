@@ -1,0 +1,20 @@
+@model Prqautomovile
+@{
+    ViewData["Title"] = "Detalles del automóvil";
+}
+
+<h1>Detalles del automóvil</h1>
+<dl class="row">
+    <dt class="col-sm-2">Id</dt>
+    <dd class="col-sm-10">@Model.Id</dd>
+    <dt class="col-sm-2">Color</dt>
+    <dd class="col-sm-10">@Model.Color</dd>
+    <dt class="col-sm-2">Año</dt>
+    <dd class="col-sm-10">@Model.Year</dd>
+    <dt class="col-sm-2">Fabricante</dt>
+    <dd class="col-sm-10">@Model.Manufacturer</dd>
+    <dt class="col-sm-2">Tipo</dt>
+    <dd class="col-sm-10">@(Model.Type == PRQTipoAutomovil.CuatroX4 ? "4x4" : Model.Type.ToString())</dd>
+</dl>
+<a asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-primary">Editar</a>
+<a asp-action="Index" class="btn btn-secondary">Volver a la lista</a>

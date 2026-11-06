@@ -1,0 +1,25 @@
+@model AutomovilFormViewModel
+
+<div asp-validation-summary="ModelOnly" class="text-danger"></div>
+<div class="mb-3">
+    <label asp-for="Color" class="form-label"></label>
+    <input asp-for="Color" class="form-control" />
+    <span asp-validation-for="Color" class="text-danger"></span>
+</div>
+<div class="mb-3">
+    <label asp-for="Year" class="form-label">Año</label>
+    <input asp-for="Year" class="form-control" />
+    <span asp-validation-for="Year" class="text-danger"></span>
+</div>
+<div class="mb-3">
+    <label asp-for="Manufacturer" class="form-label">Fabricante</label>
+    <input asp-for="Manufacturer" class="form-control" />
+    <span asp-validation-for="Manufacturer" class="text-danger"></span>
+</div>
+<div class="mb-3">
+    <label asp-for="Type" class="form-label">Tipo</label>
+    <select asp-for="Type" asp-items='(IEnumerable<SelectListItem>)ViewData["TypeOptions"]!' class="form-select">
+        <option value="">Seleccione un tipo</option>
+    </select>
+    <span asp-validation-for="Type" class="text-danger"></span>
+</div>
