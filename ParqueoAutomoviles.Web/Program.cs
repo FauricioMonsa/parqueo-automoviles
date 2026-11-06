@@ -3,48 +3,61 @@ using Npgsql;
 using ParqueoAutomoviles.BusinessLogic.Contracts;
 using ParqueoAutomoviles.BusinessLogic.Repositories;
 using ParqueoAutomoviles.Model;
+using ParqueoAutomoviles.Web;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllersWithViews();
 
-var dataSource = builder.Configuration["DataSource"] ?? "EfCore";
+var defaultDataSource = builder.Configuration["DataSource"] ?? "EfCore";
+var automobileDataSource = ReadDataSource(builder.Configuration["DataSources:Automoviles"], "DataSources:Automoviles", defaultDataSource);
+var parkingDataSource = ReadDataSource(builder.Configuration["DataSources:Parqueos"], "DataSources:Parqueos", defaultDataSource);
+var entryDataSource = ReadDataSource(builder.Configuration["DataSources:Ingresos"], "DataSources:Ingresos", defaultDataSource);
+var usesEfCore = automobileDataSource == "EfCore"
+    || parkingDataSource == "EfCore"
+    || entryDataSource == "EfCore";
+var usesJson = automobileDataSource == "Json"
+    || parkingDataSource == "Json"
+    || entryDataSource == "Json";
 
-switch (dataSource)
+if (usesEfCore)
 {
-    case "EfCore":
-        var connectionString = builder.Configuration.GetConnectionString("MySecretPostgresConnection");
-        if (string.IsNullOrWhiteSpace(connectionString))
-        {
-            throw new InvalidOperationException(
-                "Falta configurar ConnectionStrings:MySecretPostgresConnection en los secretos del usuario.");
-        }
+    var connectionString = builder.Configuration.GetConnectionString("MySecretPostgresConnection");
+    if (string.IsNullOrWhiteSpace(connectionString))
+    {
+        throw new InvalidOperationException(
+            "Falta configurar ConnectionStrings:MySecretPostgresConnection en los secretos del usuario.");
+    }
 
-        var npgsqlDataSourceBuilder = new NpgsqlDataSourceBuilder(connectionString);
-        npgsqlDataSourceBuilder.MapEnum<PRQTipoAutomovil>("user_08.PRQTipoAutomovil");
-        var npgsqlDataSource = npgsqlDataSourceBuilder.Build();
-        builder.Services.AddSingleton(npgsqlDataSource);
-        builder.Services.AddDbContext<ParqueoAutomovilesContext>((serviceProvider, options) =>
-            options.UseNpgsql(
-                serviceProvider.GetRequiredService<NpgsqlDataSource>(),
-                npgsqlOptions => npgsqlOptions.MapEnum<PRQTipoAutomovil>("user_08.PRQTipoAutomovil")));
-        builder.Services.AddScoped<PrqRepositorySet>(serviceProvider =>
-            PrqRepositoryFactory.FromEfCore(serviceProvider.GetRequiredService<ParqueoAutomovilesContext>()));
-        break;
-    case "Json":
-        var databaseFolder = Path.GetFullPath(Path.Combine(builder.Environment.ContentRootPath, "..", "database"));
-        builder.Services.AddScoped<PrqRepositorySet>(_ => PrqRepositoryFactory.FromJson(databaseFolder));
-        break;
-    default:
-        throw new InvalidOperationException("La configuración DataSource debe ser 'EfCore' o 'Json'.");
+    var npgsqlDataSourceBuilder = new NpgsqlDataSourceBuilder(connectionString);
+    npgsqlDataSourceBuilder.MapEnum<PRQTipoAutomovil>("user_08.PRQTipoAutomovil");
+    var npgsqlDataSource = npgsqlDataSourceBuilder.Build();
+    builder.Services.AddSingleton(npgsqlDataSource);
+    builder.Services.AddDbContext<ParqueoAutomovilesContext>((serviceProvider, options) =>
+        options.UseNpgsql(
+            serviceProvider.GetRequiredService<NpgsqlDataSource>(),
+            npgsqlOptions => npgsqlOptions.MapEnum<PRQTipoAutomovil>("user_08.PRQTipoAutomovil")));
 }
 
+var jsonDatabaseFolder = Path.GetFullPath(Path.Combine(
+    builder.Environment.ContentRootPath,
+    builder.Configuration["JsonDatabaseFolder"] ?? "..\\database"));
+
+builder.Services.AddScoped<ConfiguredPrqRepositorySets>(serviceProvider =>
+    new ConfiguredPrqRepositorySets(
+        usesEfCore
+            ? PrqRepositoryFactory.FromEfCore(serviceProvider.GetRequiredService<ParqueoAutomovilesContext>())
+            : null,
+        usesJson
+            ? PrqRepositoryFactory.FromJson(jsonDatabaseFolder)
+            : null));
+
 builder.Services.AddScoped<IPrqAutomovilesRepository>(serviceProvider =>
-    serviceProvider.GetRequiredService<PrqRepositorySet>().Automoviles);
+    serviceProvider.GetRequiredService<ConfiguredPrqRepositorySets>().GetAutomoviles(automobileDataSource));
 builder.Services.AddScoped<IPrqParqueoRepository>(serviceProvider =>
-    serviceProvider.GetRequiredService<PrqRepositorySet>().Parqueos);
+    serviceProvider.GetRequiredService<ConfiguredPrqRepositorySets>().GetParqueos(parkingDataSource));
 builder.Services.AddScoped<IPrqIngresoAutomovilesRepository>(serviceProvider =>
-    serviceProvider.GetRequiredService<PrqRepositorySet>().Ingresos);
+    serviceProvider.GetRequiredService<ConfiguredPrqRepositorySets>().GetIngresos(entryDataSource));
 
 var app = builder.Build();
 
@@ -70,3 +83,15 @@ app.MapControllerRoute(
 
 
 app.Run();
+
+static string ReadDataSource(string? configuredValue, string configurationKey, string fallback)
+{
+    var value = configuredValue ?? fallback;
+    return value.Trim().ToUpperInvariant() switch
+    {
+        "EFCORE" => "EfCore",
+        "JSON" => "Json",
+        _ => throw new InvalidOperationException(
+            $"La configuración {configurationKey} debe ser 'EfCore' o 'Json'.")
+    };
+}
